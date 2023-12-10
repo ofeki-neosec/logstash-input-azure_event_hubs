@@ -412,8 +412,10 @@ class LogStash::Inputs::AzureEventHubs < LogStash::Inputs::Base
           options.setMaxBatchSize(max_batch_size)
           options.setPrefetchCount(prefetch_count)
           options.setReceiveTimeOut(Duration.ofSeconds(receive_timeout))
-          
-          options.setExceptionNotification(LogStash::Inputs::Azure::ErrorNotificationHandler.new)
+
+          error_notification_handler = LogStash::Inputs::Azure::ErrorNotificationHandler.new
+          error_notification_handler.set_metric(metric)
+          options.setExceptionNotification(error_notification_handler)
           case @initial_position
           when 'beginning'
             msg = "Configuring Event Hub #{event_hub_name} to read events all events."
@@ -431,7 +433,7 @@ class LogStash::Inputs::AzureEventHubs < LogStash::Inputs::Base
             @logger.info(msg) unless event_hub['storage_connection']
             options.setInitialPositionProvider(LogStash::Inputs::Azure::LookBackPositionProvider.new(@initial_position_look_back))
           end
-          event_processor_host.registerEventProcessorFactory(LogStash::Inputs::Azure::ProcessorFactory.new(queue, event_hub['codec'], event_hub['checkpoint_interval'], self.method(:decorate), event_hub['decorate_events']), options)
+          event_processor_host.registerEventProcessorFactory(LogStash::Inputs::Azure::ProcessorFactory.new(queue, event_hub['codec'], event_hub['checkpoint_interval'], self.method(:decorate), event_hub['decorate_events'], metric), options)
               .when_complete(lambda {|x, e|
                 @logger.info("Event Hub registration complete. ", :event_hub_name => event_hub_name )
                 @logger.error("Event Hub failure while registering.", :event_hub_name => event_hub_name, :exception => e, :backtrace => e.backtrace) if e
