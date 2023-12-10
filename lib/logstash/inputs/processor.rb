@@ -7,14 +7,14 @@ module LogStash
         include LogStash::Util::Loggable
         include com.microsoft.azure.eventprocessorhost.IEventProcessor
 
-        def initialize(queue, codec, checkpoint_interval, decorator, meta_data)
+        def initialize(queue, codec, checkpoint_interval, decorator, meta_data, metric)
           @queue = queue
           @codec = codec
           @checkpoint_interval = checkpoint_interval
           @decorator = decorator
           @meta_data = meta_data
           @logger = self.logger
-
+          @metric = metric
         end
 
         def onOpen(context)
@@ -71,6 +71,7 @@ module LogStash
 
         def onError(context, error)
           @logger.error("Event Hub: #{context.getEventHubPath.to_s}, Partition: #{context.getPartitionId.to_s} experienced an error #{error.to_s})")
+          @metric.increment(:processor_errors)
         end
       end
     end
